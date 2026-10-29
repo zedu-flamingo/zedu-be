@@ -14,6 +14,10 @@ import (
 	"github.com/hngprojects/telex_be/utility"
 )
 
+// Both the registered and the unregistered path must answer with this exact
+// message, so neither can be used to probe for accounts.
+const neutralResetMessage = "If an account exists for that email, password reset instructions have been sent"
+
 func TestResetPassword(t *testing.T) {
 	router, authController := SetupAuthTestRouter()
 	db := authController.Db.Postgresql
@@ -40,10 +44,10 @@ func TestResetPassword(t *testing.T) {
 
 		tests.AssertStatusCode(t, resp.Code, http.StatusOK)
 		response := tests.ParseResponse(resp)
-		tests.AssertResponseMessage(t, response["message"].(string), "Password reset email sent")
+		tests.AssertResponseMessage(t, response["message"].(string), neutralResetMessage)
 	})
 
-	t.Run("Invalid Email reset Password Request", func(t *testing.T) {
+	t.Run("Unregistered Email reset Password Request is indistinguishable", func(t *testing.T) {
 		forgotPasswordRequest := models.ForgotPasswordRequestModel{
 			Email: "nonexistent@qa.team",
 		}
@@ -54,9 +58,14 @@ func TestResetPassword(t *testing.T) {
 		resp := httptest.NewRecorder()
 		router.ServeHTTP(resp, req)
 
-		tests.AssertStatusCode(t, resp.Code, http.StatusNotFound)
+		tests.AssertStatusCode(t, resp.Code, http.StatusOK)
 		response := tests.ParseResponse(resp)
-		tests.AssertResponseMessage(t, response["message"].(string), "user not found")
+		tests.AssertResponseMessage(t, response["message"].(string), neutralResetMessage)
+
+		var stored models.PasswordReset
+		if err := db.Where("email = ?", "nonexistent@qa.team").First(&stored).Error; err == nil {
+			t.Fatal("expected no password reset token for an unregistered email")
+		}
 	})
 
 	t.Run("Field Validation Error", func(t *testing.T) {

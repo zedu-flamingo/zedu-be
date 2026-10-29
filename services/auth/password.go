@@ -95,7 +95,10 @@ func PasswordReset(userEmail string, db *gorm.DB, extReq request.ExternalRequest
 
 	exists := postgresql.CheckExists(db, &user, "email = ?", userEmail)
 	if !exists {
-		return "error", http.StatusNotFound, fmt.Errorf("user not found")
+		// An unknown address answers exactly like a known one so neither the
+		// status code nor the message reveals whether an account exists. No
+		// reset token is stored and no mail is queued.
+		return "success", http.StatusOK, nil
 	}
 
 	resetToken, err := utility.GenerateOTP(6)

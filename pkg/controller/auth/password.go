@@ -44,6 +44,10 @@ func (base *Controller) ChangePassword(c *gin.Context) {
 
 }
 
+// Returned for every valid address, registered or not, so the response cannot
+// be used to discover which emails have accounts.
+const passwordResetRequestMessage = "If an account exists for that email, password reset instructions have been sent"
+
 func (base *Controller) ResetPassword(c *gin.Context) {
 	var (
 		req = models.ForgotPasswordRequestModel{}
@@ -71,8 +75,8 @@ func (base *Controller) ResetPassword(c *gin.Context) {
 		return
 	}
 
-	base.Logger.Info("password reset email sent")
-	rd := utility.BuildSuccessResponse(http.StatusOK, "Password reset email sent", respData)
+	base.Logger.Info("password reset requested")
+	rd := utility.BuildSuccessResponse(http.StatusOK, passwordResetRequestMessage, respData)
 	c.JSON(http.StatusOK, rd)
 }
 
